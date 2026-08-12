@@ -1,206 +1,252 @@
 ---
 name: spec-driven-development
-description: Creates specs before coding. Use when starting a new project, feature, or significant change and no specification exists yet. Use when requirements are unclear, ambiguous, or only exist as a vague idea.
+description: Turns a project, feature request, or vague product idea into the smallest testable specification needed to begin implementation safely. Use for new projects, significant features, ambiguous requirements, or architecture-affecting changes.
 ---
 
 # Spec-Driven Development
 
 ## Overview
 
-Write a structured specification before writing any code. The spec is the shared source of truth between you and the human engineer — it defines what we're building, why, and how we'll know it's done. Code without a spec is guessing.
+Create only enough specification to remove material ambiguity and make implementation testable. The purpose of the spec is to accelerate correct execution, not to create a documentation phase.
+
+Default behavior is **reversible autonomy**: inspect existing state, infer ordinary implementation details from evidence, record assumptions, and continue. Ask the human only when an unresolved choice would materially change outcome, architecture, cost, security, data handling, brand, deployment, external communication, or another consequential/irreversible decision.
+
+A spec may be two paragraphs or several pages. Its size is determined by uncertainty and risk, never by a fixed template quota.
 
 ## When to Use
 
-- Starting a new project or feature
-- Requirements are ambiguous or incomplete
-- The change touches multiple files or modules
-- You're about to make an architectural decision
-- The task would take more than 30 minutes to implement
+Use when:
 
-**When NOT to use:** Single-line fixes, typo corrections, or changes where requirements are unambiguous and self-contained.
+- starting a new project or meaningful feature
+- requirements are vague, incomplete, or contradictory
+- multiple implementation paths have materially different consequences
+- the change affects architecture, data model, external integrations, security, or deployment
+- acceptance criteria are not yet testable
 
-## The Gated Workflow
+Do **not** use as a ceremony for trivial, self-contained changes. For a small obvious change, write the acceptance criteria and implement it.
 
-Spec-driven development has four phases. Do not advance to the next phase until the current one is validated.
+## Core Rule
 
-```
-SPECIFY ──→ PLAN ──→ TASKS ──→ IMPLEMENT
-   │          │        │          │
-   ▼          ▼        ▼          ▼
- Human      Human    Human      Human
- reviews    reviews  reviews    reviews
-```
+**Specification is a launchpad, not a gate maze.**
 
-### Phase 1: Specify
+The default flow is:
 
-Start with a high-level vision. Ask the human clarifying questions until requirements are concrete.
-
-**Surface assumptions immediately.** Before writing any spec content, list what you're assuming:
-
-```
-ASSUMPTIONS I'M MAKING:
-1. This is a web application (not native mobile)
-2. Authentication uses session-based cookies (not JWT)
-3. The database is PostgreSQL (based on existing Prisma schema)
-4. We're targeting modern browsers only (no IE11)
-→ Correct me now or I'll proceed with these.
+```text
+INSPECT → DEFINE DONE → RESOLVE MATERIAL UNCERTAINTY → IMPLEMENTABLE SPEC → BUILD
 ```
 
-Don't silently fill in ambiguous requirements. The spec's entire purpose is to surface misunderstandings *before* code gets written — assumptions are the most dangerous form of misunderstanding.
+Do not insert mandatory human approval between ordinary reversible phases.
 
-**Write a spec document covering these six core areas:**
+Pause only at a real decision gate.
 
-1. **Objective** — What are we building and why? Who is the user? What does success look like?
+## Process
 
-2. **Commands** — Full executable commands with flags, not just tool names.
-   ```
-   Build: npm run build
-   Test: npm test -- --coverage
-   Lint: npm run lint --fix
-   Dev: npm run dev
-   ```
+### 1. Inspect Existing State First
 
-3. **Project Structure** — Where source code lives, where tests go, where docs belong.
-   ```
-   src/           → Application source code
-   src/components → React components
-   src/lib        → Shared utilities
-   tests/         → Unit and integration tests
-   e2e/           → End-to-end tests
-   docs/          → Documentation
-   ```
+Before inventing architecture:
 
-4. **Code Style** — One real code snippet showing your style beats three paragraphs describing it. Include naming conventions, formatting rules, and examples of good output.
+- read the repository instructions and relevant `SKILL.md` files
+- inspect the current implementation, existing patterns, tests, dependencies, and project structure
+- locate any existing spec, PRD, ADR, issue, plan, or prior implementation touching the same area
+- prefer extending existing patterns over creating parallel systems
 
-5. **Testing Strategy** — What framework, where tests live, coverage expectations, which test levels for which concerns.
+Do not ask the user for information already recoverable from the repository or supplied sources.
 
-6. **Boundaries** — Three-tier system:
-   - **Always do:** Run tests before commits, follow naming conventions, validate inputs
-   - **Ask first:** Database schema changes, adding dependencies, changing CI config
-   - **Never do:** Commit secrets, edit vendor directories, remove failing tests without approval
+### 2. Define the Outcome and Done Condition
 
-**Spec template:**
+Translate the request into a concrete outcome.
+
+Capture only what matters:
 
 ```markdown
-# Spec: [Project/Feature Name]
+## Outcome
+[What should exist or behave differently when this is finished?]
 
-## Objective
-[What we're building and why. User stories or acceptance criteria.]
+## User / Surface
+[Who uses it and where?]
 
-## Tech Stack
-[Framework, language, key dependencies with versions]
+## Acceptance Criteria
+- [Observable condition]
+- [Observable condition]
+- [Observable condition]
 
-## Commands
-[Build, test, lint, dev — full commands]
-
-## Project Structure
-[Directory layout with descriptions]
-
-## Code Style
-[Example snippet + key conventions]
-
-## Testing Strategy
-[Framework, test locations, coverage requirements, test levels]
-
-## Boundaries
-- Always: [...]
-- Ask first: [...]
-- Never: [...]
-
-## Success Criteria
-[How we'll know this is done — specific, testable conditions]
-
-## Open Questions
-[Anything unresolved that needs human input]
+## Constraints
+- [Known technical/business/safety constraint]
 ```
 
-**Reframe instructions as success criteria.** When receiving vague requirements, translate them into concrete conditions:
+If the request is vague, convert subjective language into observable conditions where practical.
 
+Example:
+
+```text
+"Make the dashboard faster"
+→ preserve current behavior
+→ identify the actual bottleneck first
+→ define a measurable before/after target using the project's existing performance tooling
 ```
-REQUIREMENT: "Make the dashboard faster"
 
-REFRAMED SUCCESS CRITERIA:
-- Dashboard LCP < 2.5s on 4G connection
-- Initial data load completes in < 500ms
-- No layout shift during load (CLS < 0.1)
-→ Are these the right targets?
-```
+Do not invent arbitrary performance targets when the project does not supply them.
 
-This lets you loop, retry, and problem-solve toward a clear goal rather than guessing what "faster" means.
+### 3. Surface Assumptions Without Stopping Work
 
-### Phase 2: Plan
+Record assumptions that could matter, but distinguish between ordinary reversible assumptions and consequential decisions.
 
-With the validated spec, generate a technical implementation plan:
+Example:
 
-1. Identify the major components and their dependencies
-2. Determine the implementation order (what must be built first)
-3. Note risks and mitigation strategies
-4. Identify what can be built in parallel vs. what must be sequential
-5. Define verification checkpoints between phases
-
-> Follow `planning-and-task-breakdown` for the dependency-graph mapping and vertical-slicing mechanics behind these steps; it is the canonical source. The bullets above are a lightweight summary; if they ever diverge, `planning-and-task-breakdown` takes precedence.
->
-> **Output convention:** Save the plan to `tasks/plan.md` and the task list to `tasks/todo.md`, per the `/plan` command convention. Create `tasks/` if it does not exist. Downstream commands (`/build`, etc.) expect these paths.
-
-The plan should be reviewable: the human should be able to read it and say "yes, that's the right approach" or "no, change X."
-
-### Phase 3: Tasks
-
-Break the plan into discrete, implementable tasks:
-
-- Each task should be completable in a single focused session
-- Each task has explicit acceptance criteria
-- Each task includes a verification step (test, build, manual check)
-- Tasks are ordered by dependency, not by perceived importance
-- No task should require changing more than ~5 files
-
-> Follow `planning-and-task-breakdown` for the full task-sizing and dependency-ordering mechanics; it is the canonical source. The template below is a lightweight inline form; if they ever diverge, `planning-and-task-breakdown` takes precedence.
-
-**Task template:**
 ```markdown
-- [ ] Task: [Description]
-  - Acceptance: [What must be true when done]
-  - Verify: [How to confirm — test command, build, manual check]
-  - Files: [Which files will be touched]
+## Assumptions
+- Reuse the repository's existing authentication pattern.
+- Reuse the current database unless the feature proves a schema change is required.
+- Match existing UI components before adding a new dependency.
 ```
 
-### Phase 4: Implement
+Proceed on reversible assumptions.
 
-Execute tasks one at a time following `skills/incremental-implementation/SKILL.md` (`incremental-implementation`) and `skills/test-driven-development/SKILL.md` (`test-driven-development`). Use `skills/context-engineering/SKILL.md` (`context-engineering`) to load the right spec sections and source files at each step rather than flooding the agent with the entire spec.
+Ask only when the unresolved choice is consequential, for example:
 
-## Keeping the Spec Alive
+- destructive schema migration vs additive migration
+- new paid service or dependency
+- public API contract change
+- materially different security model
+- production deployment behavior
+- customer-facing brand/content decision with meaningful alternatives
 
-The spec is a living document, not a one-time artifact:
+### 4. Scope to the Smallest Valuable Slice
 
-- **Update when decisions change** — If you discover the data model needs to change, update the spec first, then implement.
-- **Update when scope changes** — Features added or cut should be reflected in the spec.
-- **Commit the spec** — The spec belongs in version control alongside the code.
-- **Reference the spec in PRs** — Link back to the spec section that each PR implements.
+Before expanding the design, identify the smallest slice that proves or unlocks the requested capability.
+
+Prefer:
+
+```text
+working narrow flow → validate → expand
+```
+
+over:
+
+```text
+complete theoretical architecture → giant task tree → implementation later
+```
+
+If the idea is large, phase it by user-visible or testable value. Do not arbitrarily limit the number of screens, files, tasks, or phases; use actual dependency and value boundaries.
+
+Explicitly list non-goals only when they prevent likely scope creep.
+
+### 5. Write the Minimum Implementable Spec
+
+Use only sections that materially help execution.
+
+Default form:
+
+```markdown
+# Spec: [Name]
+
+## Outcome
+[What changes and why]
+
+## Current State
+[Relevant existing behavior/patterns discovered in the repo]
+
+## Proposed Change
+[Smallest implementation that achieves the outcome]
+
+## Acceptance Criteria
+- [Testable condition]
+- [Testable condition]
+
+## Affected Areas
+[Likely files/modules/systems]
+
+## Validation
+[Tests/build/manual/runtime checks required]
+
+## Assumptions / Decision Gates
+[Reversible assumptions being made; consequential unresolved choices only]
+```
+
+Add data model, API contract, UI flow, permissions, migration, rollout, observability, or security sections **only when the feature actually requires them**.
+
+### 6. Choose the Implementation Path From Evidence
+
+When multiple technical paths exist:
+
+1. prefer the repository's established patterns
+2. prefer the lower-complexity reversible option that satisfies acceptance criteria
+3. avoid new dependencies unless they materially improve the result
+4. document a tradeoff only when the alternatives are meaningfully different
+
+Do not present the human with routine A/B choices that the repository state can resolve.
+
+### 7. Move Directly Into Planning or Build
+
+Once the spec is implementable:
+
+- use `planning-and-task-breakdown` when dependency ordering is genuinely useful
+- use a lightweight task list when the implementation is small
+- use `incremental-implementation` and `test-driven-development` for execution
+- use `context-engineering` to load only the relevant spec and source sections during implementation
+
+Do not create `tasks/plan.md` and `tasks/todo.md` merely because those files are possible. Create them only when they improve execution or are required by the active command/workflow.
+
+## Decision Gates
+
+A human decision is required only when proceeding would commit the project to a materially different or risky path, including:
+
+- production deployment or release
+- external communication or publication
+- spending money or enabling paid infrastructure
+- destructive/irreversible migration or deletion
+- material permissions/security/access changes
+- use of sensitive or regulated data beyond the already approved pattern
+- architecture choices that are expensive to reverse and not resolvable from existing project standards
+
+Otherwise, make the best evidence-based reversible choice and continue.
+
+## Anti-Overengineering Rules
+
+Do not:
+
+- force a fixed-length PRD for every feature
+- require human review after every phase
+- ask routine questions already answered by the repo
+- create a framework to decide whether another framework is needed
+- generate an arbitrary number of options, tasks, screens, or phases
+- design infrastructure before a concrete use case requires it
+- postpone a testable build merely to make the documentation more complete
+- confuse artifact creation with progress
+
+When a smaller durable implementation proves the idea, build that first.
 
 ## Common Rationalizations
 
-| Rationalization | Reality |
+| Rationalization | Correct response |
 |---|---|
-| "This is simple, I don't need a spec" | Simple tasks don't need *long* specs, but they still need acceptance criteria. A two-line spec is fine. |
-| "I'll write the spec after I code it" | That's documentation, not specification. The spec's value is in forcing clarity *before* code. |
-| "The spec will slow us down" | A 15-minute spec prevents hours of rework. Waterfall in 15 minutes beats debugging in 15 hours. |
-| "Requirements will change anyway" | That's why the spec is a living document. An outdated spec is still better than no spec. |
-| "The user knows what they want" | Even clear requests have implicit assumptions. The spec surfaces those assumptions. |
+| "We need a complete PRD before touching code" | We need enough specification to remove material ambiguity and test the result. |
+| "The user must approve each phase" | Only consequential or irreversible choices need a gate. |
+| "I should ask what stack they want" | Inspect the existing stack first. |
+| "More options are safer" | Resolve routine choices from evidence and recommend one path. |
+| "Let's architect for the future" | Build the smallest slice that satisfies the present outcome unless future requirements are explicit. |
+| "The task is too small for a spec" | A one-line done condition may be the entire spec. |
 
 ## Red Flags
 
-- Starting to write code without any written requirements
-- Asking "should I just start building?" before clarifying what "done" means
-- Implementing features not mentioned in any spec or task list
-- Making architectural decisions without documenting them
-- Skipping the spec because "it's obvious what to build"
+- more time spent specifying than the likely implementation requires
+- repeated user questions with recoverable answers
+- a plan that produces only documents and no testable state change
+- an arbitrary cap such as "pick 3 ideas" without an evidence-based reason
+- introducing new architecture before inspecting the existing system
+- deferring implementation because another planning artifact could be created
+- claiming completion without tests, build checks, runtime evidence, or appropriate manual validation
 
 ## Verification
 
-Before proceeding to implementation, confirm:
+Before implementation, confirm:
 
-- [ ] The spec covers all six core areas
-- [ ] The human has reviewed and approved the spec
-- [ ] Success criteria are specific and testable
-- [ ] Boundaries (Always/Ask First/Never) are defined
-- [ ] The spec is saved to a file in the repository
+- [ ] Existing state was inspected.
+- [ ] The outcome is concrete.
+- [ ] Acceptance criteria are testable.
+- [ ] Material assumptions are visible.
+- [ ] No consequential unresolved decision is being silently made.
+- [ ] The proposed change is the smallest valuable slice that satisfies the request.
+- [ ] The spec contains no sections that exist only for ceremony.
+
+Then continue into implementation without waiting for another approval unless a real decision gate is reached.
